@@ -106,9 +106,9 @@ pub struct Counter {
     name: &'static str,
 }
 
-pub const COZ_COUNTER_TYPE_THROUGHPUT: libc::c_int = 1;
-pub const COZ_COUNTER_TYPE_BEGIN: libc::c_int = 2;
-pub const COZ_COUNTER_TYPE_END: libc::c_int = 3;
+const COZ_COUNTER_TYPE_THROUGHPUT: libc::c_int = 1;
+const COZ_COUNTER_TYPE_BEGIN: libc::c_int = 2;
+const COZ_COUNTER_TYPE_END: libc::c_int = 3;
 
 impl Counter {
     #[doc(hidden)]
