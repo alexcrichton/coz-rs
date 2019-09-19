@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 macro_rules! progress {
     () => {{
         static COUNTER: $crate::Counter =
-            $crate::Counter::progress(file!(), ":", line!());
+            $crate::Counter::progress(concat!(file!(), ":", line!()));
         COUNTER.increment();
     }};
     ($name:expr) => {{
