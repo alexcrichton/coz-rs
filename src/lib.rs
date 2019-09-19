@@ -1,5 +1,5 @@
 use once_cell::sync::OnceCell;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
@@ -21,11 +21,11 @@ use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 macro_rules! progress {
     () => {{
         static COUNTER: $crate::Counter =
-            $crate::Counter::progress(concat!(file!(), ":", line!(), "\0"));
+            $crate::Counter::progress(file!(), ":", line!());
         COUNTER.increment();
     }};
     ($name:expr) => {{
-        static COUNTER: $crate::Counter = $crate::Counter::progress(concat!($name, "\0"));
+        static COUNTER: $crate::Counter = $crate::Counter::progress($name);
         COUNTER.increment();
     }};
 }
@@ -40,7 +40,7 @@ macro_rules! progress {
 #[macro_export]
 macro_rules! begin {
     ($name:expr) => {{
-        static COUNTER: $crate::Counter = $crate::Counter::begin(concat!($name, "\0"));
+        static COUNTER: $crate::Counter = $crate::Counter::begin($name);
         COUNTER.increment();
     }};
 }
@@ -55,7 +55,7 @@ macro_rules! begin {
 #[macro_export]
 macro_rules! end {
     ($name:expr) => {{
-        static COUNTER: $crate::Counter = $crate::Counter::end(concat!($name, "\0"));
+        static COUNTER: $crate::Counter = $crate::Counter::end($name);
         COUNTER.increment();
     }};
 }
@@ -147,8 +147,8 @@ impl Counter {
     }
 
     fn create_counter(&self) -> Option<&'static coz_counter_t> {
-        let name = CStr::from_bytes_with_nul(self.name.as_bytes()).unwrap();
-        let ptr = coz_get_counter(self.ty, name);
+        let name = CString::new(self.name).unwrap();
+        let ptr = coz_get_counter(self.ty, &name);
         if ptr.is_null() {
             None
         } else {
