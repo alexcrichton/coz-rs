@@ -1,4 +1,18 @@
+//! Rust support for the `coz` Causal Profiler
+//!
+//! This crate is a translation of the `coz.h` header file provided by `coz` to
+//! Rust, and enables profiling Rust programs with `coz` to profile throughput
+//! and latency.
+//!
+//! For usage information, consult the [`README.md` for the `coz`
+//! repository][coz-readme] as well as the [`README.md` for
+//! `coz-rs`][rust-readme].
+//!
+//! [coz-readme]: https://github.com/plasma-umass/coz/blob/master/README.md
+//! [rust-readme]: https://github.com/alexcrichton/coz-rs/blob/master/README.md
+
 use once_cell::sync::OnceCell;
+use std::cell::Cell;
 use std::ffi::{CStr, CString};
 use std::mem;
 use std::ptr;
@@ -60,19 +74,24 @@ macro_rules! end {
     }};
 }
 
-/// Perform one-time initialization for `coz`.
+/// Perform one-time per-thread initialization for `coz`.
 ///
-/// This isn't necessary to call, but if you run into issues with segfaults
-/// related to SIGPROF handlers this may help fix the issue since it installs a
-/// bigger stack earlier on in the process.
-pub fn init() {
+/// This may not be necessary to call, but for good measure it's recommended to
+/// call once per thread in your application near where the thred starts.
+/// If you run into issues with segfaults related to SIGPROF handlers this may
+/// help fix the issue since it installs a bigger stack earlier on in the
+/// process.
+pub fn thread_init() {
     // As one-time program initialization, make sure that our sigaltstack is big
     // enough. By default coz uses SIGPROF on an alternate signal stack, but the
     // Rust standard library already sets up a SIGALTSTACK which is
     // unfortunately too small to run coz's handler. If our sigaltstack looks
     // too small let's allocate a bigger one and use it here.
-    static SIGALTSTACK_DISABLE: OnceCell<()> = OnceCell::new();
-    SIGALTSTACK_DISABLE.get_or_init(|| unsafe {
+    thread_local!(static SIGALTSTACK_DISABLED: Cell<bool> = Cell::new(false));
+    if SIGALTSTACK_DISABLED.with(|s| s.replace(true)) {
+        return;
+    }
+    unsafe {
         let mut stack = mem::zeroed();
         libc::sigaltstack(ptr::null(), &mut stack);
         let size = 1 << 20; // 1mb
@@ -96,10 +115,15 @@ pub fn init() {
             ss_size: size,
         };
         libc::sigaltstack(&new_stack, ptr::null_mut());
-    });
+    }
 }
 
-#[doc(hidden)]
+/// A `coz`-counter which is either intended for throughput or `begin`/`end`
+/// points.
+///
+/// This is typically created by macros above via `progress!()`, `begin!()`, or
+/// `end!()`, but if necessary you can also create one of these manually in your
+/// own application for your own macros.
 pub struct Counter {
     slot: OnceCell<Option<&'static coz_counter_t>>,
     ty: libc::c_int,
@@ -111,17 +135,25 @@ const COZ_COUNTER_TYPE_BEGIN: libc::c_int = 2;
 const COZ_COUNTER_TYPE_END: libc::c_int = 3;
 
 impl Counter {
-    #[doc(hidden)]
+    /// Creates a throughput coz counter with the given name.
     pub const fn progress(name: &'static str) -> Counter {
         Counter::new(COZ_COUNTER_TYPE_THROUGHPUT, name)
     }
 
-    #[doc(hidden)]
+    /// Creates a latency coz counter with the given name, used for when an
+    /// operation begins.
+    ///
+    /// Note that this counter should be paired with an `end` counter of the
+    /// same name.
     pub const fn begin(name: &'static str) -> Counter {
         Counter::new(COZ_COUNTER_TYPE_BEGIN, name)
     }
 
-    #[doc(hidden)]
+    /// Creates a latency coz counter with the given name, used for when an
+    /// operation ends.
+    ///
+    /// Note that this counter should be paired with an `begin` counter of the
+    /// same name.
     pub const fn end(name: &'static str) -> Counter {
         Counter::new(COZ_COUNTER_TYPE_END, name)
     }
@@ -134,7 +166,13 @@ impl Counter {
         }
     }
 
-    #[inline]
+    /// Increment that an operation happened on this counter.
+    ///
+    /// For throughput counters this should be called in a location where you
+    /// want something to happen more often.
+    ///
+    /// For latency-based counters this should be called before and after the
+    /// operation you'd like to measure the latency of.
     pub fn increment(&self) {
         let counter = self.slot.get_or_init(|| self.create_counter());
         if let Some(counter) = counter {
@@ -158,8 +196,7 @@ impl Counter {
 }
 
 #[repr(C)]
-#[doc(hidden)]
-pub struct coz_counter_t {
+struct coz_counter_t {
     count: AtomicUsize,
     backoff: libc::size_t,
 }
@@ -177,7 +214,7 @@ fn coz_get_counter(ty: libc::c_int, name: &CStr) -> *mut coz_counter_t {
         return ptr::null_mut();
     }
 
-    init(); // just in case we haven't already
+    thread_init(); // just in case we haven't already
 
     unsafe {
         mem::transmute::<
