@@ -84,6 +84,29 @@ Known caveats so far to generate a report that collects information are:
 * Currently `coz` only works on Linux, and while this crate should compile on
   all platforms it only actually does something on Linux.
 
+## Examples
+
+You can find an example toy program at `examples/toy.rs` in this repository, and
+we can execute it with `coz`:
+
+```
+$ cargo build --release
+$ coz run --- ./target/release/examples/toy
+...
+[profiler.cpp:75] Starting profiler thread
+$
+```
+
+That should generate `profile.coz` in the current directory, which if you plot
+that should look something like this:
+
+![plot of `toy.rs`](toy.png)
+
+Note that I'm still learning myself the best sorts of applications to run on as
+well as the best sorts of questions to ask `coz` and where to put
+latency/throughput points. If you've got ideas or good examples, please feel
+free to add them here!
+
 # License
 
 This project is licensed under either of
