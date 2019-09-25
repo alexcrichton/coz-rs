@@ -74,8 +74,12 @@ macro_rules! end {
     }};
 }
 
-/// marks a scope with `coz::begin!` and `coz::end!` which are executed even
-/// on early exit (e.g. via `return`, `?` or `panic!`).
+/// Marks a lexical scope with `coz::begin!` and `coz::end!` which are executed
+/// even on early exit (e.g. via `return`, `?` or `panic!`).
+///
+/// Where this macro is invoked is where a `begin` counter is placed, and then
+/// at the end of the lexical scope (when this macro's local variable goes out
+/// of scope) an `end` counter is placed.
 ///
 /// # Examples
 ///
