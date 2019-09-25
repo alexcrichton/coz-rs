@@ -74,6 +74,27 @@ macro_rules! end {
     }};
 }
 
+/// marks a scope with `coz::begin!` and `coz::end!` which are executed even
+/// on early exit (e.g. via `return`, `?` or `panic!`).
+///
+/// # Examples
+///
+/// ```rust
+/// coz::scope!("outer");
+/// {
+///     coz::scope!("inner");
+/// }
+/// ```
+#[macro_export]
+macro_rules! scope {
+    ($name:expr) => {
+        static BEGIN_COUNTER: $crate::Counter = $crate::Counter::begin($name);
+        static END_COUNTER: $crate::Counter = $crate::Counter::end($name);
+        BEGIN_COUNTER.increment();
+        let _coz_scope_guard = $crate::Guard::new(&END_COUNTER);
+    };
+}
+
 /// Perform one-time per-thread initialization for `coz`.
 ///
 /// This may not be necessary to call, but for good measure it's recommended to
@@ -192,6 +213,27 @@ impl Counter {
         } else {
             Some(unsafe { &*ptr })
         }
+    }
+}
+
+/// A type that increments a counter on drop. This allows us to issue the right
+/// coz calls to `begin` and `end` for the duration of a scope, regardless of how
+/// the scope was exited (e.g. by early return, `?` or panic).
+pub struct Guard<'t> {
+    counter: &'t Counter
+}
+
+impl<'t> Guard<'t> {
+    pub fn new(counter: &'t Counter) -> Self {
+        Guard {
+            counter
+        }
+    }
+}
+
+impl<'t> Drop for Guard<'t> {
+    fn drop(&mut self) {
+        self.counter.increment();
     }
 }
 
