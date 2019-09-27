@@ -51,6 +51,21 @@ fn foo() {
 }
 ```
 
+If you have a lexical scope, you can also use the `coz::scope!(name)` macro
+to place `begin` and `end` markers for you:
+
+```rust
+// Boy I wish this function executed more quickly...
+fn scope_me() {
+    coz::scope!("foo");
+
+    // ...
+}
+```
+
+This has the added benefit that it will place the `end` marker even on
+early exit, such as `return`, `?` or `panic!`.
+
 After you've instrumented your code, you need to also ensure that you're
 compiling with DWARF debug information. To do this you'll want to configure
 `Cargo.toml` again:
