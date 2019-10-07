@@ -22,7 +22,7 @@ coz = "0.1"
 Then you'll want to either at throughput or latency tracepoints. More
 information on this [can be found
 upstream](https://github.com/plasma-umass/coz/#profiling-modes). If you have
-something you'd wish whould execute more often, you can add:
+something you'd wish to execute more often, you can add:
 
 ```rust
 fn main() {
