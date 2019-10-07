@@ -1,5 +1,10 @@
 # coz-rs
 
+> **Note**: the official source of this crate now lives [upstream in the main
+> `coz` repository](https://github.com/plasma-umass/coz), it's recommended to
+> use that instead of this repository, and file issues/changes there instead of
+> here.
+
 Rust support for the [`coz` Causal Profiler](https://github.com/plasma-umass/coz)
 
 [![Documentation](https://docs.rs/coz/badge.svg)](https://docs.rs/coz)
